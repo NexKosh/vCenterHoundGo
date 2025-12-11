@@ -1,0 +1,272 @@
+{
+  "custom_types": {
+    "vCenter_VCenter": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "server",
+        "color": "#00E5FF"
+      }
+    },
+    "vCenter_RootFolder": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "sitemap",
+        "color": "#FFD700"
+      }
+    },
+    "vCenter_Datacenter": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "building",
+        "color": "#5FED83"
+      }
+    },
+    "vCenter_Cluster": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "cubes",
+        "color": "#FFD166"
+      }
+    },
+    "vCenter_ESXiHost": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "microchip",
+        "color": "#F4A261"
+      }
+    },
+    "vCenter_ResourcePool": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "boxes-stacked",
+        "color": "#B3E5FC"
+      }
+    },
+    "vCenter_vApp": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "layer-group",
+        "color": "#FFB86C"
+      }
+    },
+    "vCenter_VM": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "desktop",
+        "color": "#9EECFF"
+      }
+    },
+    "vCenter_VMTemplate": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "copy",
+        "color": "#A0AEC0"
+      }
+    },
+    "vCenter_Datastore": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "hard-drive",
+        "color": "#B0E0E6"
+      }
+    },
+    "vCenter_DatastoreCluster": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "database",
+        "color": "#87CEFA"
+      }
+    },
+    "vCenter_Network": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "network-wired",
+        "color": "#FF80D2"
+      }
+    },
+    "vCenter_StandardPortgroup": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "ethernet",
+        "color": "#FFB6C1"
+      }
+    },
+    "vCenter_DVSwitch": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "project-diagram",
+        "color": "#00BFFF"
+      }
+    },
+    "vCenter_DVPortgroup": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "share-nodes",
+        "color": "#FF69B4"
+      }
+    },
+    "vCenter_Principal": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-circle",
+        "color": "#FFA500"
+      }
+    },
+    "vCenter_User": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user",
+        "color": "#FF8E40"
+      }
+    },
+    "vCenter_Group": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "users",
+        "color": "#C06EFF"
+      }
+    },
+    "vCenter_Role": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-shield",
+        "color": "#BFFFD1"
+      }
+    },
+    "vCenter_Privilege": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "key",
+        "color": "#FFD700"
+      }
+    },
+    "vCenter_Folder": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "folder",
+        "color": "#F6C177"
+      }
+    },
+    "vCenter_IdentityDomain": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#98FB98"
+      }
+    }
+  },
+  "custom_edges": {
+    "vCenter_Contains": {
+      "style": {
+        "color": "#4CAF50",
+        "line": "solid",
+        "width": 2
+      },
+      "label": "Contains"
+    },
+    "vCenter_Hosts": {
+      "style": {
+        "color": "#FF9800",
+        "line": "dashed",
+        "width": 2
+      },
+      "label": "Hosts"
+    },
+    "vCenter_Mounts": {
+      "style": {
+        "color": "#2196F3",
+        "line": "solid",
+        "width": 1
+      },
+      "label": "Mounts"
+    },
+    "vCenter_HasDatastore": {
+      "style": {
+        "color": "#00BCD4",
+        "line": "dotted",
+        "width": 1
+      },
+      "label": "Has Datastore"
+    },
+    "vCenter_UsesDatastore": {
+      "style": {
+        "color": "#009688",
+        "line": "dashed",
+        "width": 1
+      },
+      "label": "Uses Storage"
+    },
+    "vCenter_HasNetwork": {
+      "style": {
+        "color": "#E91E63",
+        "line": "dotted",
+        "width": 1
+      },
+      "label": "Has Network"
+    },
+    "vCenter_UsesNetwork": {
+      "style": {
+        "color": "#9C27B0",
+        "line": "dashed",
+        "width": 1
+      },
+      "label": "Uses Network"
+    },
+    "vCenter_HasRole": {
+      "style": {
+        "color": "#FF5722",
+        "line": "solid",
+        "width": 2
+      },
+      "label": "Has Role"
+    },
+    "vCenter_AssignedTo": {
+      "style": {
+        "color": "#795548",
+        "line": "solid",
+        "width": 2
+      },
+      "label": "Assigned To"
+    },
+    "vCenter_MemberOf": {
+      "style": {
+        "color": "#607D8B",
+        "line": "dashed",
+        "width": 2
+      },
+      "label": "Member Of"
+    },
+    "vCenter_HasPrivilege": {
+      "style": {
+        "color": "#FFC107",
+        "line": "dotted",
+        "width": 1
+      },
+      "label": "Has Privilege"
+    },
+    "SyncsTovCenterUser": {
+      "style": {
+        "color": "#607D8B",
+        "line": "solid",
+        "width": 1
+      },
+      "label": "Syncs To vCenter User"
+    },
+    "SyncsTovCenterGroup": {
+      "style": {
+        "color": "#607D8B",
+        "line": "solid",
+        "width": 1
+      },
+      "label": "Syncs To vCenter Group"
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "description": "vCenterHound infrastructure and permissions model for BloodHound",
+    "author": "Mor David",
+    "created": "2025",
+    "node_prefix": "vCenter_",
+    "edge_prefix": "vCenter_"
+  }
+}
