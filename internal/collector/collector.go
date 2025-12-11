@@ -245,11 +245,16 @@ func (c *VCenterCollector) collectEntities(kind string, props []string) {
 				properties["numCpuThreads"] = h.Summary.Hardware.NumCpuThreads
 			}
 
-			properties["version"] = h.Config.Product.Version
-			properties["build"] = h.Config.Product.Build
-			properties["connectionState"] = string(h.Summary.Runtime.ConnectionState)
-			properties["powerState"] = string(h.Summary.Runtime.PowerState)
-			properties["inMaintenanceMode"] = h.Summary.Runtime.InMaintenanceMode
+			if h.Config != nil {
+				properties["version"] = h.Config.Product.Version
+				properties["build"] = h.Config.Product.Build
+			}
+
+			if h.Summary.Runtime != nil {
+				properties["connectionState"] = string(h.Summary.Runtime.ConnectionState)
+				properties["powerState"] = string(h.Summary.Runtime.PowerState)
+				properties["inMaintenanceMode"] = h.Summary.Runtime.InMaintenanceMode
+			}
 
 			// isStandalone: if parent is ComputeResource (not Cluster)
 			isStandalone := false
@@ -272,7 +277,7 @@ func (c *VCenterCollector) collectEntities(kind string, props []string) {
 
 			props["powerState"] = string(vm.Summary.Runtime.PowerState)
 			props["connectionState"] = string(vm.Summary.Runtime.ConnectionState)
-			if !vm.Summary.Runtime.BootTime.IsZero() {
+			if vm.Summary.Runtime.BootTime != nil && !vm.Summary.Runtime.BootTime.IsZero() {
 				props["bootTime"] = vm.Summary.Runtime.BootTime.String()
 			}
 
