@@ -308,8 +308,8 @@ func (c *VCenterCollector) collectEntities(kind string, props []string) {
 				gst := vm.Guest
 				props["hostName"] = gst.HostName
 				// ipAddress is single, but user requested ipAddresses[]
-				var ips []string
-				var macs []string
+				ips := make([]string, 0)
+				macs := make([]string, 0)
 				if gst.Net != nil {
 					for _, nic := range gst.Net {
 						if nic.IpAddress != nil {
@@ -431,7 +431,7 @@ func (c *VCenterCollector) CollectPermissions() {
 	for _, role := range roles {
 		roleID := fmt.Sprintf("role:%s:%d", c.Config.Host, role.RoleId)
 
-		var groups []string
+		groups := make([]string, 0)
 		seenGroups := make(map[string]bool)
 
 		for _, privStr := range role.Privilege {
@@ -461,10 +461,10 @@ func (c *VCenterCollector) CollectPermissions() {
 			}
 
 			c.Graph.EnsureNode([]string{"Privilege"}, privID, map[string]any{
-				"name":        privName,
-				"privId":      privStr,
-				"group":       privGroup,
-				"tags":        []string{},
+				"name":   privName,
+				"privId": privStr,
+				"group":  privGroup,
+				"tags":   []string{},
 			})
 			c.Graph.AddEdge("HAS_PRIVILEGE", roleID, privID, nil)
 		}
@@ -623,7 +623,7 @@ func (c *VCenterCollector) CollectGroupMemberships() {
 	}
 
 	if len(groups) == 0 {
-		c.Debugf("No groups found to analyze memberships for")
+		c.Logger.Println("[DEBUG] No vCenter_Group nodes found in graph to analyze.")
 		return
 	}
 
@@ -651,7 +651,14 @@ func (c *VCenterCollector) CollectGroupMemberships() {
 		}
 
 		if err != nil {
+			c.Logger.Printf("[DEBUG] Failed to retrieve members for group %s: %v", groupName, err)
 			continue
+		}
+
+		if len(resp.Returnval) == 0 {
+			c.Logger.Printf("[DEBUG] Group %s has 0 members.", groupName)
+		} else {
+			c.Logger.Printf("[DEBUG] Group %s has %d members.", groupName, len(resp.Returnval))
 		}
 
 		parentGID := fmt.Sprintf("group:%s:%s", c.Config.Host, groupName)
@@ -692,6 +699,18 @@ func (c *VCenterCollector) CollectGroupMemberships() {
 				"isGroup":  isGroup,
 				"tags":     []string{},
 			})
+
+			// Add AD Sync Edge (Missing logic added)
+			if fqdn, ok := c.DomainMap[strings.ToUpper(domain)]; ok {
+				adPrincipalID := fmt.Sprintf("%s@%s", strings.ToUpper(username), fqdn)
+				if !isGroup {
+					c.Debugf("Syncing member vCenter user %s to AD user %s", memberPrincipal, adPrincipalID)
+					c.Graph.AddRawEdgeWithMatch("SyncsTovCenterUser", adPrincipalID, "name", memberID, "", nil)
+				} else {
+					c.Debugf("Syncing member vCenter group %s to AD group %s", memberPrincipal, adPrincipalID)
+					c.Graph.AddRawEdgeWithMatch("SyncsTovCenterGroup", adPrincipalID, "name", memberID, "", nil)
+				}
+			}
 
 			c.Graph.AddEdge("MEMBER_OF", memberID, parentGID, nil)
 		}
