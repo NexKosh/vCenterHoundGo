@@ -46,8 +46,31 @@ func (e GraphEdge) MarshalJSON() ([]byte, error) {
 			Value:   e.EndID,
 			MatchBy: e.EndMatchBy,
 		},
-		Properties: e.Properties,
 	})
+}
+
+// UnmarshalJSON custom unmarshaling for Edge to match BloodHound format
+func (e *GraphEdge) UnmarshalJSON(data []byte) error {
+	type EdgeValue struct {
+		Value   string `json:"value"`
+		MatchBy string `json:"match_by,omitempty"`
+	}
+	type Alias GraphEdge
+	aux := &struct {
+		Start EdgeValue `json:"start"`
+		End   EdgeValue `json:"end"`
+		*Alias
+	}{
+		Alias: (*Alias)(e),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	e.StartID = aux.Start.Value
+	e.StartMatchBy = aux.Start.MatchBy
+	e.EndID = aux.End.Value
+	e.EndMatchBy = aux.End.MatchBy
+	return nil
 }
 
 // GraphData structure for export

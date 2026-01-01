@@ -37,22 +37,45 @@ Before importing data, you must register the custom node/edge types in BloodHoun
 
 ### 2. Run Collector
 
-**Basic Run:**
+**⚡ NEW: Split Workflow**
+
+This version supports a **two-phase workflow** that separates vCenter data collection from BloodHound integration:
+
+#### Phase 1: Collect Mode (No BloodHound Required)
+Collect vCenter data and save it to a raw JSON file. This can run on a machine with vCenter access but **without** BloodHound connectivity.
+
 ```bash
-./vCenterHound -s vc.example.com -u administrator@vsphere.local -p "Password!"
+./vCenterHound -mode collect \
+  -s vc.example.com \
+  -u administrator@vsphere.local \
+  -p "Password!" \
+  -o vcenter_raw.json
 ```
 
-**With Active Directory Sync (BloodHound Enterprise):**
-This mode fetches available domains from BloodHound to map vCenter NetBIOS names (e.g., `CORP`) to FQDNs (e.g., `CORP.LOCAL`), creating `SyncsTovCenterUser` edges.
+#### Phase 2: Process Mode (Enrich with BloodHound Data)
+Load the raw JSON, connect to BloodHound Enterprise to fetch domain mappings, and add `SyncsTovCenterUser`/`SyncsTovCenterGroup` edges.
+
+```bash
+./vCenterHound -mode process \
+  -i vcenter_raw.json \
+  -o vcenter_final.json \
+  -bh-url https://bloodhound.example.com \
+  -bh-key-id "YOUR_KEY_ID" \
+  -bh-key-secret "YOUR_KEY_SECRET"
+```
+
+**Legacy: Single-Phase Mode (Default)**
+
+For backwards compatibility, you can still run collection and processing in one step:
 
 ```bash
 ./vCenterHound \
   -s vc.example.com \
   -u administrator@vsphere.local \
   -p "Password!" \
-  --bh-url https://bloodhound.example.com \
-  --bh-key-id "YOUR_KEY_ID" \
-  --bh-key-secret "YOUR_KEY_SECRET"
+  -bh-url https://bloodhound.example.com \
+  -bh-key-id "YOUR_KEY_ID" \
+  -bh-key-secret "YOUR_KEY_SECRET"
 ```
 
 **Debug Mode:**
@@ -63,15 +86,22 @@ Enable detailed logging and stats.
 
 ### Command-Line Arguments
 
+**Collection Mode:**
+*   `-mode`: Execution mode: `collect` (vCenter only) or `process` (BloodHound sync). Default: `collect`.
 *   `-s`: vCenter server(s) (comma-separated).
 *   `-u`: vCenter username.
 *   `-p`: vCenter password.
 *   `-P`: vCenter port (default 443).
 *   `-o`: Output file path (default `vcenter_graph.json`).
 *   `--debug`: Enable debug logging.
-*   `--bh-url`: BloodHound Enterprise URL (for AD sync).
-*   `--bh-key-id`: BloodHound API Key ID.
-*   `--bh-key-secret`: BloodHound API Key Secret.
+
+**Process Mode:**
+*   `-mode process`: Enable process mode.
+*   `-i`: Input raw JSON file (from collect mode).
+*   `-o`: Output final JSON file.
+*   `-bh-url`: BloodHound Enterprise URL (for AD sync).
+*   `-bh-key-id`: BloodHound API Key ID.
+*   `-bh-key-secret`: BloodHound API Key Secret.
 
 ## Node Types
 
