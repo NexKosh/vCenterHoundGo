@@ -222,7 +222,16 @@ func (c *Collector) processPermission(perm types.Permission, roles map[int32]typ
 		"privilegeCount":  privCount,
 	}
 
-	c.GraphBuilder.AddEdge("HAS_PERMISSION", principalID, entityID, props)
+	// Determine Edge Kind from Role Name
+	edgeKind := "HAS_PERMISSION"
+	if roleName != "" {
+		// Sanitize role name for graph kind
+		edgeKind = strings.ReplaceAll(roleName, " ", "_")
+		edgeKind = strings.ReplaceAll(edgeKind, ".", "_")
+		edgeKind = strings.ReplaceAll(edgeKind, "-", "_")
+	}
+
+	c.GraphBuilder.AddEdge(edgeKind, principalID, entityID, props)
 }
 
 func parsePrincipal(principal string) (string, string) {
