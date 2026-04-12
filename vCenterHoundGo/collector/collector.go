@@ -84,11 +84,6 @@ func (c *Collector) Collect() error {
 		// Continue anyway? Use python behavior: it seems to continue.
 	}
 
-	log.Println("Collecting permissions data...")
-	if err := c.CollectPermissions(); err != nil {
-		log.Printf("Error collecting permissions: %v", err)
-	}
-
 	log.Println("Collecting group memberships...")
 	if err := c.CollectGroupMemberships(); err != nil {
 		log.Printf("Error collecting group memberships: %v", err)

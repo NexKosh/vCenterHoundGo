@@ -1,0 +1,624 @@
+﻿{
+  "graph": {
+    "nodes": [
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\vCLSAdmin",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\vCLSAdmin",
+          "username": "vCLSAdmin"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\SyncUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\SyncUsers",
+          "username": "SyncUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\waiter-ae7ae2d9-3804-45ef-8f62-a37976f54a2e",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\waiter-ae7ae2d9-3804-45ef-8f62-a37976f54a2e",
+          "username": "waiter-ae7ae2d9-3804-45ef-8f62-a37976f54a2e"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\ComponentManager.Administrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\ComponentManager.Administrators",
+          "username": "ComponentManager.Administrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\ServiceProviderUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\ServiceProviderUsers",
+          "username": "ServiceProviderUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\DCClients",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\DCClients",
+          "username": "DCClients"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\SystemConfiguration.BashShellAdministrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\SystemConfiguration.BashShellAdministrators",
+          "username": "SystemConfiguration.BashShellAdministrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_RootFolder",
+          "vCenter_Folder"
+        ],
+        "id": "folder:192.168.3.48:group-d1",
+        "properties": {
+          "moid": "group-d1",
+          "name": "Datacenters"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\vSphereClientSolutionUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\vSphereClientSolutionUsers",
+          "username": "vSphereClientSolutionUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\NsxAuditors",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\NsxAuditors",
+          "username": "NsxAuditors"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\RegistryAdministrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\RegistryAdministrators",
+          "username": "RegistryAdministrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\Administrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\Administrators",
+          "username": "Administrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\NsxViAdministrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\NsxViAdministrators",
+          "username": "NsxViAdministrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\TrustedAdmins",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\TrustedAdmins",
+          "username": "TrustedAdmins"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\Administrator",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\Administrator",
+          "username": "Administrator"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\reader",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\reader",
+          "username": "reader"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\vStatsGroup",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\vStatsGroup",
+          "username": "vStatsGroup"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\ActAsUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\ActAsUsers",
+          "username": "ActAsUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\DCAdmins",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\DCAdmins",
+          "username": "DCAdmins"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\DCAdmins",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\DCAdmins",
+          "username": "DCAdmins"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\NsxAdministrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\NsxAdministrators",
+          "username": "NsxAdministrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\ExternalIDPUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\ExternalIDPUsers",
+          "username": "ExternalIDPUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\Administrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\Administrators",
+          "username": "Administrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\Users",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\Users",
+          "username": "Users"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8",
+          "username": "workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\SystemConfiguration.SupportUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\SystemConfiguration.SupportUsers",
+          "username": "SystemConfiguration.SupportUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_User"
+        ],
+        "id": "user:192.168.3.48:vsphere.local\\DCClients",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": false,
+          "name": "vsphere.local\\DCClients",
+          "username": "DCClients"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\LicenseService.Administrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\LicenseService.Administrators",
+          "username": "LicenseService.Administrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_vCenter"
+        ],
+        "id": "vcenter:192.168.3.48",
+        "properties": {
+          "name": "192.168.3.48"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\SystemConfiguration.ReadOnly",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\SystemConfiguration.ReadOnly",
+          "username": "SystemConfiguration.ReadOnly"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\AutoUpdate",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\AutoUpdate",
+          "username": "AutoUpdate"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\CAAdmins",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\CAAdmins",
+          "username": "CAAdmins"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\SystemConfiguration.Administrators",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\SystemConfiguration.Administrators",
+          "username": "SystemConfiguration.Administrators"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\SolutionUsers",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\SolutionUsers",
+          "username": "SolutionUsers"
+        }
+      },
+      {
+        "kinds": [
+          "vCenter_Group"
+        ],
+        "id": "group:192.168.3.48:vsphere.local\\WorkloadStorage",
+        "properties": {
+          "domain": "vsphere.local",
+          "isGroup": true,
+          "name": "vsphere.local\\WorkloadStorage",
+          "username": "WorkloadStorage"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "kind": "vCenter_Contains",
+        "start": {
+          "value": "vcenter:192.168.3.48"
+        },
+        "end": {
+          "value": "folder:192.168.3.48:group-d1"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrators"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\LicenseService.Administrators"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SystemConfiguration.SupportUsers"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\DCAdmins"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\CAAdmins"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\DCClients"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\CAAdmins"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\CAAdmins"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\waiter-ae7ae2d9-3804-45ef-8f62-a37976f54a2e"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\CAAdmins"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SolutionUsers"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\ServiceProviderUsers"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\reader"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\DCClients"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrators"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SystemConfiguration.Administrators"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SystemConfiguration.Administrators"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\ActAsUsers"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\workload_storage_management-c5ac257d-e0cb-4d42-bc6b-07cf81aae7c8"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\WorkloadStorage"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SystemConfiguration.ReadOnly"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\reader"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SystemConfiguration.ReadOnly"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\Administrators"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\SystemConfiguration.BashShellAdministrators"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\Administrator"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\Users"
+        },
+        "properties": {}
+      },
+      {
+        "kind": "vCenter_MemberOf",
+        "start": {
+          "value": "user:192.168.3.48:vsphere.local\\reader"
+        },
+        "end": {
+          "value": "group:192.168.3.48:vsphere.local\\Users"
+        },
+        "properties": {}
+      }
+    ]
+  }
+}

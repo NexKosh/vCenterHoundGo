@@ -9,6 +9,12 @@ Ensure you have the following executables compiled and ready:
 2.  **vCenterHoundGo**: For collecting vCenter data.
 3.  **vCenterNeo4j**: For syncing AD relationships.
 
+## Minimum Privilege Account Setup (最小權限帳號設定)
+
+To run the collector with the least privileges required, please configure your service account as follows:
+1. **vCenter Permission (vCenter 權限)**: 建立帳號並綁定 `Read-only` 角色，設定在 Root Folder 層級並確保啟用 **Propagate to children** (向下傳播)。
+2. **SSO Group Membership (SSO 群組設定)**: 於 SSO 設定中，將建立的帳號加入到 `Users` 群組中 (以便具備透過 PSC API 或 SSO 查詢群組與網域基礎架構的權限)。
+
 ## Step 1: Upload Model Schema
 
 Before ingesting any data, you must upload the custom node definitions (`model.json`) to BloodHound.
