@@ -28,9 +28,10 @@ type pscMember struct {
 // pscClient bundles an HTTP client holding an authenticated VSPHERE-UI-JSESSIONID
 // and the XSRF token needed for all /ui/psc-ui/ requests.
 type pscClient struct {
-	http      *http.Client
-	xsrfToken string
-	jar       *cookiejar.Jar
+	http              *http.Client
+	xsrfToken         string
+	webClientSessionID string
+	jar               *cookiejar.Jar
 }
 
 // loggingTransport wraps a RoundTripper and logs every Set-Cookie header so we
@@ -57,6 +58,12 @@ func (c *Collector) CollectGroupMemberships() error {
 		return fmt.Errorf("failed to build PSC client: %w", err)
 	}
 
+	// Warm up the PSC backend session — the browser Angular app always calls
+	// these endpoints before groups, which initialises a server-side PSC session.
+	if err := c.warmupPSC(psc); err != nil {
+		log.Printf("  [WARN] PSC warmup failed (continuing anyway): %v", err)
+	}
+
 	groupPrincipals, err := c.fetchPSCAllGroups(psc)
 	if err != nil {
 		log.Printf("  [WARN] failed to fetch all groups: %v", err)
@@ -81,7 +88,37 @@ func (c *Collector) CollectGroupMemberships() error {
 	return nil
 }
 
-// fetchPSCAllGroups retrieves all groups via the PSC REST API.
+// warmupPSC calls lightweight PSC endpoints in the same order the vSphere Angular
+// app does before it fetches groups. This initialises the PSC backend session so
+// subsequent requests to /ui/psc-ui/ctrl/psc/tenant/* are accepted.
+func (c *Collector) warmupPSC(psc *pscClient) error {
+	for _, path := range []string{
+		"/ui/psc-ui/ctrl/psc/passwordpolicy",
+		"/ui/psc-ui/ctrl/psc/domains",
+	} {
+		endpoint := fmt.Sprintf("https://%s%s", c.Config.Host, path)
+		req, err := http.NewRequestWithContext(c.Context, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Accept", "application/json, text/plain, */*")
+		req.Header.Set("X-Requested-With", "XMLHttpRequest")
+		req.Header.Set("webclientsessionid", psc.webClientSessionID)
+		req.Header.Set("Referer", fmt.Sprintf("https://%s/ui/", c.Config.Host))
+		if psc.xsrfToken != "" {
+			req.Header.Set("X-VSPHERE-UI-XSRF-TOKEN", psc.xsrfToken)
+		}
+		resp, err := psc.http.Do(req)
+		if err != nil {
+			return err
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		log.Printf("  PSC warmup %s → HTTP %d: %s", path, resp.StatusCode, truncate(string(body), 100))
+	}
+	return nil
+}
+
 // fetchPSCAllGroups retrieves all groups via the PSC REST API.
 func (c *Collector) fetchPSCAllGroups(psc *pscClient) ([]string, error) {
 	endpoint := fmt.Sprintf("https://%s/ui/psc-ui/ctrl/psc/tenant/groups?query=", c.Config.Host)
@@ -90,14 +127,10 @@ func (c *Collector) fetchPSCAllGroups(psc *pscClient) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	// Generate a dummy webclientsessionid similar in length to UI client token
-	webClientId := "aca7be47ed302cc425440802a7a1e1f17f74e1b0"
-	req.Header.Set("webclientsessionid", webClientId)
-
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	req.Header.Set("webclientsessionid", "aca7be47ed302cc425440802a7a1e1f17f74e1b0")
+	req.Header.Set("webclientsessionid", psc.webClientSessionID)
 	req.Header.Set("Origin", fmt.Sprintf("https://%s", c.Config.Host))
 	req.Header.Set("Referer", fmt.Sprintf("https://%s/ui/", c.Config.Host))
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
@@ -118,7 +151,7 @@ func (c *Collector) fetchPSCAllGroups(psc *pscClient) ([]string, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("PSC API HTTP %d for groups list: %s", resp.StatusCode, truncate(string(rawBody), 200))
+		return nil, fmt.Errorf("PSC API HTTP %d for groups list: %s", resp.StatusCode, truncate(string(rawBody), 2000))
 	}
 	
 	log.Printf("  PSC raw response for groups: %s", truncate(string(rawBody), 400))
@@ -343,20 +376,67 @@ func (c *Collector) buildPSCClient() (*pscClient, error) {
 		log.Printf("  vSphere UI session established (JSESSIONID present)")
 	}
 
-	// VSPHERE-UI-XSRF-TOKEN is generated client-side by the Angular app (Double
-	// Submit Cookie pattern).  The server never sends it as Set-Cookie — it just
-	// validates that the cookie value matches the X-VSPHERE-UI-XSRF-TOKEN header.
-	// We generate our own UUID, plant it as a cookie, and echo it as a header.
-	xsrfToken := uuid.New().String()
+	// Fetch h5-config to get the clientId (webclientsessionid) and XSRF cookie name.
+	// The Angular app always calls this endpoint after login; the returned clientId is
+	// what the PSC backend validates as webclientsessionid.
+	webClientSessionID, xsrfToken, err := c.fetchH5Config(client, uiURL, jar)
+	if err != nil {
+		return nil, fmt.Errorf("fetch h5-config: %w", err)
+	}
+	log.Printf("  webclientsessionid (clientId): %s", webClientSessionID)
+	log.Printf("  XSRF token: %s", xsrfToken)
+
+	return &pscClient{http: client, xsrfToken: xsrfToken, webClientSessionID: webClientSessionID, jar: jar}, nil
+}
+
+// fetchH5Config calls /ui/config/h5-config?debug=false to obtain the clientId
+// (used as webclientsessionid) and sets the XSRF cookie in the jar.
+func (c *Collector) fetchH5Config(client *http.Client, uiURL *url.URL, jar *cookiejar.Jar) (clientID, xsrfToken string, err error) {
+	endpoint := fmt.Sprintf("https://%s/ui/config/h5-config?debug=false", c.Config.Host)
+	req, err := http.NewRequestWithContext(c.Context, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Referer", fmt.Sprintf("https://%s/ui/", c.Config.Host))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("h5-config HTTP %d: %s", resp.StatusCode, truncate(string(body), 200))
+	}
+
+	var cfg struct {
+		ClientID       string `json:"clientId"`
+		XsrfCookieName string `json:"xsrfCookieName"`
+	}
+	if err := json.Unmarshal(body, &cfg); err != nil {
+		return "", "", fmt.Errorf("parse h5-config: %w", err)
+	}
+	if cfg.ClientID == "" {
+		return "", "", fmt.Errorf("h5-config missing clientId")
+	}
+
+	xsrfCookieName := cfg.XsrfCookieName
+	if xsrfCookieName == "" {
+		xsrfCookieName = "VSPHERE-UI-XSRF-TOKEN"
+	}
+
+	// Generate XSRF token and plant it as a cookie (double-submit pattern).
+	xsrfToken = uuid.New().String()
 	jar.SetCookies(uiURL, []*http.Cookie{{
-		Name:   "VSPHERE-UI-XSRF-TOKEN",
+		Name:   xsrfCookieName,
 		Value:  xsrfToken,
 		Path:   "/ui",
 		Secure: true,
 	}})
-	log.Printf("  XSRF token injected: %s", xsrfToken)
 
-	return &pscClient{http: client, xsrfToken: xsrfToken, jar: jar}, nil
+	return cfg.ClientID, xsrfToken, nil
 }
 
 // postSAMLResponse POSTs the SAMLResponse assertion to the ACS endpoint.
@@ -428,6 +508,7 @@ func (c *Collector) fetchPSCGroupMembers(psc *pscClient, groupQuery, parentGID s
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("webclientsessionid", psc.webClientSessionID)
 	req.Header.Set("Origin", fmt.Sprintf("https://%s", c.Config.Host))
 	req.Header.Set("Referer", fmt.Sprintf("https://%s/ui/", c.Config.Host))
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
