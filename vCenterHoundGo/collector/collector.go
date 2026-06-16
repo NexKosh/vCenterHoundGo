@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 	"vCenterHoundGo/graph"
 
 	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -18,6 +22,7 @@ type VCenterConfig struct {
 	User     string
 	Password string
 	Port     int
+	Proxy    string // optional, e.g. "http://proxy.corp:8080"
 }
 
 // Collector holds the state for data collection
@@ -47,12 +52,30 @@ func (c *Collector) Connect() error {
 	if err != nil {
 		return err
 	}
-
 	u.User = url.UserPassword(c.Config.User, c.Config.Password)
 
-	// Bypass SSL verification
-	c.Client, err = govmomi.NewClient(c.Context, u, true)
+	soapClient := soap.NewClient(u, true)
+
+	if c.Config.Proxy != "" {
+		proxyURL, err := url.Parse(c.Config.Proxy)
+		if err != nil {
+			return fmt.Errorf("invalid proxy URL %q: %w", c.Config.Proxy, err)
+		}
+		soapClient.DefaultTransport().Proxy = http.ProxyURL(proxyURL)
+		log.Printf("Using proxy %s for govmomi connection", c.Config.Proxy)
+	}
+
+	vim25Client, err := vim25.NewClient(c.Context, soapClient)
 	if err != nil {
+		return err
+	}
+
+	c.Client = &govmomi.Client{
+		Client:         vim25Client,
+		SessionManager: session.NewManager(vim25Client),
+	}
+
+	if err := c.Client.Login(c.Context, u.User); err != nil {
 		if strings.Contains(err.Error(), "incorrect user name or password") {
 			return fmt.Errorf("authentication failed: incorrect user name or password for %s@%s", c.Config.User, c.Config.Host)
 		}
@@ -87,6 +110,11 @@ func (c *Collector) Collect() error {
 	log.Println("Collecting group memberships...")
 	if err := c.CollectGroupMemberships(); err != nil {
 		log.Printf("Error collecting group memberships: %v", err)
+	}
+
+	log.Println("Collecting permissions...")
+	if err := c.CollectPermissions(); err != nil {
+		log.Printf("Error collecting permissions: %v", err)
 	}
 
 	return nil

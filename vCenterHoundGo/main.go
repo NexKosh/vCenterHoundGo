@@ -21,6 +21,7 @@ func main() {
 	outPtr := flag.String("o", "vcenter_graph.json", "Output file")
 	verbosePtr := flag.Bool("v", false, "Verbose logging")
 	modePtr := flag.String("mode", "collect", "Execution mode: collect")
+	proxyPtr := flag.String("proxy", "", "HTTP/HTTPS proxy URL (e.g. http://proxy.corp:8080)")
 
 	// Long flags
 	flag.StringVar(serverPtr, "server", "", "vCenter server(s)")
@@ -70,6 +71,7 @@ vCenterHoundGo - vCenter to BloodHound Graph Converter
 			User:     *userPtr,
 			Password: *passPtr,
 			Port:     *portPtr,
+			Proxy:    *proxyPtr,
 		}
 
 		// Each collector builds into its own builder? Or shared?

@@ -197,8 +197,19 @@ func (c *Collector) fetchPSCAllGroups(psc *pscClient) ([]string, error) {
 //  3. POST SAMLResponse    to the ACS URL (/ui/saml/websso/sso or similar)
 //                          → server validates SAML, sets VSPHERE-UI-JSESSIONID
 func (c *Collector) buildPSCClient() (*pscClient, error) {
+	proxyFunc := http.ProxyFromEnvironment
+	if c.Config.Proxy != "" {
+		proxyURL, err := url.Parse(c.Config.Proxy)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy URL %q: %w", c.Config.Proxy, err)
+		}
+		proxyFunc = http.ProxyURL(proxyURL)
+		log.Printf("Using proxy %s for PSC client", c.Config.Proxy)
+	}
+
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		Proxy:           proxyFunc,
 	}
 	jar, err := cookiejar.New(nil)
 	if err != nil {
