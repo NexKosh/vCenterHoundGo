@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"strings"
-
 	"vCenterHoundGo/collector"
 	"vCenterHoundGo/graph"
 )

@@ -10,203 +10,326 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// CollectInfrastructure collects all infrastructure data
-func (c *Collector) CollectInfrastructure() error {
-	// Root Folder
-	m := view.NewManager(c.Client.Client)
+// infraCache holds all prefetched vCenter objects keyed by MOID.
+type infraCache struct {
+	Folders     map[string]mo.Folder
+	Datacenters map[string]mo.Datacenter
+	Clusters    map[string]mo.ClusterComputeResource
+	Computes    map[string]mo.ComputeResource
+	Hosts       map[string]mo.HostSystem
+	VMs         map[string]mo.VirtualMachine
+	Datastores  map[string]mo.Datastore
+	Networks    map[string]mo.Network
+	ResPools    map[string]mo.ResourcePool
+}
 
-	v, err := m.CreateContainerView(c.Context, c.Client.ServiceContent.RootFolder, []string{"Folder", "Datacenter"}, false)
+// prefetchAll batch-fetches every object type sequentially via ContainerView.
+// This replaces O(N) individual RetrieveOne calls with ~9 bulk requests.
+func (c *Collector) prefetchAll() (*infraCache, error) {
+	m := view.NewManager(c.Client.Client)
+	root := c.Client.ServiceContent.RootFolder
+
+	cache := &infraCache{
+		Folders:     make(map[string]mo.Folder),
+		Datacenters: make(map[string]mo.Datacenter),
+		Clusters:    make(map[string]mo.ClusterComputeResource),
+		Computes:    make(map[string]mo.ComputeResource),
+		Hosts:       make(map[string]mo.HostSystem),
+		VMs:         make(map[string]mo.VirtualMachine),
+		Datastores:  make(map[string]mo.Datastore),
+		Networks:    make(map[string]mo.Network),
+		ResPools:    make(map[string]mo.ResourcePool),
+	}
+
+	fetch := func(objType string, props []string) (*view.ContainerView, error) {
+		v, err := m.CreateContainerView(c.Context, root, []string{objType}, true)
+		if err != nil {
+			return nil, fmt.Errorf("create view for %s: %w", objType, err)
+		}
+		return v, nil
+	}
+
+	// Folders
+	if v, err := fetch("Folder", nil); err == nil {
+		var objs []mo.Folder
+		if err := v.Retrieve(c.Context, []string{"Folder"}, []string{"name", "childEntity"}, &objs); err != nil {
+			log.Printf("Warning: prefetch Folder: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.Folders[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Datacenters
+	if v, err := fetch("Datacenter", nil); err == nil {
+		var objs []mo.Datacenter
+		if err := v.Retrieve(c.Context, []string{"Datacenter"}, []string{"name", "hostFolder", "vmFolder", "datastore", "network"}, &objs); err != nil {
+			log.Printf("Warning: prefetch Datacenter: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.Datacenters[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Clusters
+	if v, err := fetch("ClusterComputeResource", nil); err == nil {
+		var objs []mo.ClusterComputeResource
+		if err := v.Retrieve(c.Context, []string{"ClusterComputeResource"}, []string{"name", "host", "datastore", "network", "resourcePool", "summary", "configuration"}, &objs); err != nil {
+			log.Printf("Warning: prefetch ClusterComputeResource: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.Clusters[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Standalone ComputeResource (non-cluster)
+	if v, err := fetch("ComputeResource", nil); err == nil {
+		var objs []mo.ComputeResource
+		if err := v.Retrieve(c.Context, []string{"ComputeResource"}, []string{"host"}, &objs); err != nil {
+			log.Printf("Warning: prefetch ComputeResource: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			// Skip ClusterComputeResource (it's a subtype returned by ComputeResource view)
+			if o.Self.Type == "ComputeResource" {
+				cache.Computes[o.Self.Value] = o
+			}
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Hosts
+	if v, err := fetch("HostSystem", nil); err == nil {
+		var objs []mo.HostSystem
+		if err := v.Retrieve(c.Context, []string{"HostSystem"}, []string{"name", "summary", "vm", "datastore", "network"}, &objs); err != nil {
+			log.Printf("Warning: prefetch HostSystem: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.Hosts[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// VMs
+	if v, err := fetch("VirtualMachine", nil); err == nil {
+		var objs []mo.VirtualMachine
+		if err := v.Retrieve(c.Context, []string{"VirtualMachine"}, []string{"name", "config", "guest", "runtime", "summary", "datastore", "network"}, &objs); err != nil {
+			log.Printf("Warning: prefetch VirtualMachine: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.VMs[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Datastores
+	if v, err := fetch("Datastore", nil); err == nil {
+		var objs []mo.Datastore
+		if err := v.Retrieve(c.Context, []string{"Datastore"}, []string{"name", "summary"}, &objs); err != nil {
+			log.Printf("Warning: prefetch Datastore: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.Datastores[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Networks
+	if v, err := fetch("Network", nil); err == nil {
+		var objs []mo.Network
+		if err := v.Retrieve(c.Context, []string{"Network"}, []string{"name", "summary"}, &objs); err != nil {
+			log.Printf("Warning: prefetch Network: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.Networks[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	// Resource Pools
+	if v, err := fetch("ResourcePool", nil); err == nil {
+		var objs []mo.ResourcePool
+		if err := v.Retrieve(c.Context, []string{"ResourcePool"}, []string{"name", "resourcePool"}, &objs); err != nil {
+			log.Printf("Warning: prefetch ResourcePool: %v", err)
+		}
+		v.Destroy(c.Context)
+		for _, o := range objs {
+			cache.ResPools[o.Self.Value] = o
+		}
+	} else {
+		log.Printf("Warning: %v", err)
+	}
+
+	log.Printf("Prefetch complete: %d folders, %d datacenters, %d clusters, %d compute, %d hosts, %d VMs, %d datastores, %d networks, %d resource pools",
+		len(cache.Folders), len(cache.Datacenters), len(cache.Clusters), len(cache.Computes),
+		len(cache.Hosts), len(cache.VMs), len(cache.Datastores),
+		len(cache.Networks), len(cache.ResPools))
+
+	return cache, nil
+}
+
+// CollectInfrastructure collects all infrastructure data using batch prefetch.
+func (c *Collector) CollectInfrastructure() error {
+	log.Println("Prefetching all objects from vCenter...")
+	cache, err := c.prefetchAll()
 	if err != nil {
 		return err
 	}
-	defer v.Destroy(c.Context)
 
-	// Add vCenter node
 	vcenterID := fmt.Sprintf("vcenter:%s", c.Config.Host)
 	c.GraphBuilder.EnsureNode([]string{"vCenter"}, vcenterID, map[string]interface{}{"name": c.Config.Host})
 	log.Printf("Added vCenter node: %s", c.Config.Host)
 
-	// Root folder processing
+	// Root folder is the container itself, so it's excluded from ContainerView results.
+	// Fetch it directly (single RetrieveOne for just this one object).
+	rootRef := c.Client.ServiceContent.RootFolder
 	var rootFolder mo.Folder
-	err = c.Client.RetrieveOne(c.Context, c.Client.ServiceContent.RootFolder, nil, &rootFolder)
-	if err != nil {
-		return err
+	if err := c.Client.RetrieveOne(c.Context, rootRef, []string{"name", "childEntity"}, &rootFolder); err != nil {
+		return fmt.Errorf("failed to retrieve root folder: %w", err)
 	}
 
-	rootID := fmt.Sprintf("folder:%s:%s", c.Config.Host, getID(rootFolder.Reference()))
+	rootID := fmt.Sprintf("folder:%s:%s", c.Config.Host, rootRef.Value)
 	c.GraphBuilder.EnsureNode([]string{"RootFolder", "Folder"}, rootID, map[string]interface{}{
 		"name": rootFolder.Name,
-		"moid": getID(rootFolder.Reference()),
+		"moid": rootRef.Value,
 	})
 	c.GraphBuilder.AddEdge("CONTAINS", vcenterID, rootID, nil)
 
-	// Iterate children of root folder
 	for _, child := range rootFolder.ChildEntity {
 		switch child.Type {
 		case "Datacenter":
-			if err := c.processDatacenter(child, rootID); err != nil {
-				log.Printf("Error processing datacenter: %v", err)
-			}
+			c.processDCFromCache(child, rootID, cache)
 		case "Folder":
-			if err := c.processFolder(child, rootID); err != nil {
-				log.Printf("Error processing folder: %v", err)
-			}
+			c.processFolderFromCache(child, rootID, cache)
 		}
 	}
 
 	return nil
 }
 
-func (c *Collector) processFolder(ref types.ManagedObjectReference, parentID string) error {
-	var folder mo.Folder
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "childEntity"}, &folder)
-	if err != nil {
-		return err
+func (c *Collector) processFolderFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	folder, ok := cache.Folders[ref.Value]
+	if !ok {
+		return
 	}
 
-	folderID := fmt.Sprintf("folder:%s:%s", c.Config.Host, getID(folder.Reference()))
+	folderID := fmt.Sprintf("folder:%s:%s", c.Config.Host, ref.Value)
 	c.GraphBuilder.EnsureNode([]string{"Folder"}, folderID, map[string]interface{}{
 		"name": folder.Name,
-		"moid": getID(folder.Reference()),
+		"moid": ref.Value,
 	})
 	c.GraphBuilder.AddEdge("CONTAINS", parentID, folderID, nil)
 
 	for _, child := range folder.ChildEntity {
 		switch child.Type {
 		case "Datacenter":
-			c.processDatacenter(child, folderID)
+			c.processDCFromCache(child, folderID, cache)
 		case "Folder":
-			c.processFolder(child, folderID)
+			c.processFolderFromCache(child, folderID, cache)
 		case "VirtualMachine":
-			c.processVM(child, folderID)
-		case "ComputeResource", "ClusterComputeResource":
-			// Should act like processComputeFolder? Or are these direct children?
-			// Process compute folder children usually.
-			// Ideally we use specialized methods.
+			c.processVMFromCache(child, folderID, cache)
 		}
 	}
-	return nil
 }
 
-func (c *Collector) processDatacenter(ref types.ManagedObjectReference, parentID string) error {
-	var dc mo.Datacenter
-	// Retrieve structure
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "hostFolder", "vmFolder", "datastore", "network"}, &dc)
-	if err != nil {
-		return err
-	}
-
-	dcID := fmt.Sprintf("datacenter:%s:%s", c.Config.Host, getID(dc.Reference()))
-	c.GraphBuilder.EnsureNode([]string{"Datacenter"}, dcID, map[string]interface{}{
-		"name": dc.Name,
-		"moid": getID(dc.Reference()),
-	})
-	c.GraphBuilder.AddEdge("CONTAINS", parentID, dcID, nil)
-
-	log.Printf("Processing Datacenter: %s", dc.Name)
-
-	// Process Host Folder (Compute Resources)
-	if err := c.processHostFolder(dc.HostFolder, dcID); err != nil {
-		log.Printf("Error processing host folder for DC %s: %v", dc.Name, err)
-	}
-
-	// Process VM Folder
-	if err := c.processVMFolder(dc.VmFolder, dcID); err != nil {
-		log.Printf("Error processing VM folder for DC %s: %v", dc.Name, err)
-	}
-
-	// Process Datastores
-	for _, ds := range dc.Datastore {
-		c.processDatastore(ds, dcID)
-	}
-
-	// Process Networks
-	for _, net := range dc.Network {
-		c.processNetwork(net, dcID)
-	}
-
-	return nil
-}
-
-func (c *Collector) processHostFolder(ref types.ManagedObjectReference, parentID string) error {
-	// Recursively process folders until we find ComputeResource or ClusterComputeResource
-	var folder mo.Folder
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "childEntity"}, &folder)
-	if err != nil {
-		return err
-	}
-
-	// Host folder itself is not usually a node in the graph in the Python script logic if it's strictly "hostFolder",
-	// BUT the Python script processes "Compute Folder" recursively and adds it as a Folder node.
-	// Let's verify Python logic: _process_compute_folder adds a Folder node.
-	// _process_datacenter calls calls _process_compute_folder on compute wrapper folders if they are folders?
-	// In Python: `if isinstance(compute, vim.Folder): _process_compute_folder`
-	// Actually `dc.hostFolder` IS a folder. So we should treat it as one if we want exact parity.
-	// Only if it's NOT the root host folder? The Python script iterates `dc.hostFolder.childEntity`.
-	// If the child is a Folder, it calls `_process_compute_folder`.
-	// If the child is Host/Cluster, it calls `_process_standalone_host` / `_process_cluster`.
-	// It does NOT add the `hostFolder` itself as a node usually, unless it enters `_process_compute_folder`.
-
-	for _, child := range folder.ChildEntity {
-		switch child.Type {
-		case "Folder":
-			c.processComputeFolder(child, parentID)
-		case "ClusterComputeResource":
-			c.processCluster(child, parentID)
-		case "ComputeResource":
-			// Standalone host
-			c.processComputeResource(child, parentID)
-		case "HostSystem":
-			// Sometimes direct HostSystem?
-			c.processStandaloneHost(child, parentID)
-		}
-	}
-	return nil
-}
-
-func (c *Collector) processComputeFolder(ref types.ManagedObjectReference, parentID string) {
-	var folder mo.Folder
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "childEntity"}, &folder)
-	if err != nil {
+func (c *Collector) processDCFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	dc, ok := cache.Datacenters[ref.Value]
+	if !ok {
 		return
 	}
 
-	folderID := fmt.Sprintf("folder:%s:%s", c.Config.Host, getID(folder.Reference()))
+	dcID := fmt.Sprintf("datacenter:%s:%s", c.Config.Host, ref.Value)
+	c.GraphBuilder.EnsureNode([]string{"Datacenter"}, dcID, map[string]interface{}{
+		"name": dc.Name,
+		"moid": ref.Value,
+	})
+	c.GraphBuilder.AddEdge("CONTAINS", parentID, dcID, nil)
+	log.Printf("Processing Datacenter: %s", dc.Name)
+
+	c.processHostFolderFromCache(dc.HostFolder, dcID, cache)
+	c.processVMFolderFromCache(dc.VmFolder, dcID, cache)
+
+	for _, ds := range dc.Datastore {
+		c.processDatastoreFromCache(ds, "", cache)
+	}
+	for _, net := range dc.Network {
+		c.processNetworkFromCache(net, "", cache)
+	}
+}
+
+func (c *Collector) processHostFolderFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	folder, ok := cache.Folders[ref.Value]
+	if !ok {
+		return
+	}
+	for _, child := range folder.ChildEntity {
+		switch child.Type {
+		case "Folder":
+			c.processComputeFolderFromCache(child, parentID, cache)
+		case "ClusterComputeResource":
+			c.processClusterFromCache(child, parentID, cache)
+		case "ComputeResource":
+			c.processComputeResourceFromCache(child, parentID, cache)
+		case "HostSystem":
+			c.processHostFromCache(child, parentID, false, cache)
+		}
+	}
+}
+
+func (c *Collector) processComputeFolderFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	folder, ok := cache.Folders[ref.Value]
+	if !ok {
+		return
+	}
+
+	folderID := fmt.Sprintf("folder:%s:%s", c.Config.Host, ref.Value)
 	c.GraphBuilder.EnsureNode([]string{"Folder"}, folderID, map[string]interface{}{
 		"name": folder.Name,
-		"moid": getID(folder.Reference()),
+		"moid": ref.Value,
 	})
-	// Connect to parent (Datacenter or parent Folder)
-	// But in processDatacenter we passed dcID as parent.
-	// Python script: _process_compute_folder adds edge PARENT -> FOLDER.
 	c.GraphBuilder.AddEdge("CONTAINS", parentID, folderID, nil)
 
 	for _, child := range folder.ChildEntity {
 		switch child.Type {
 		case "Folder":
-			c.processComputeFolder(child, folderID)
+			c.processComputeFolderFromCache(child, folderID, cache)
 		case "ClusterComputeResource":
-			c.processCluster(child, folderID)
+			c.processClusterFromCache(child, folderID, cache)
 		case "ComputeResource":
-			c.processComputeResource(child, folderID)
+			c.processComputeResourceFromCache(child, folderID, cache)
 		}
 	}
 }
 
-func (c *Collector) processCluster(ref types.ManagedObjectReference, parentID string) {
-	var cluster mo.ClusterComputeResource
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "host", "datastore", "network", "resourcePool", "summary", "configuration"}, &cluster)
-	if err != nil {
-		log.Printf("Error collecting cluster %s: %v", ref.Value, err)
+func (c *Collector) processClusterFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	cluster, ok := cache.Clusters[ref.Value]
+	if !ok {
 		return
 	}
 
-	clusterID := fmt.Sprintf("cluster:%s:%s", c.Config.Host, getID(cluster.Reference()))
+	clusterID := fmt.Sprintf("cluster:%s:%s", c.Config.Host, ref.Value)
 	props := map[string]interface{}{
 		"name": cluster.Name,
-		"moid": getID(cluster.Reference()),
+		"moid": ref.Value,
 	}
-
 	if cluster.Summary != nil {
 		s := cluster.Summary.GetComputeResourceSummary()
 		props["totalCpu"] = s.TotalCpu
@@ -218,88 +341,60 @@ func (c *Collector) processCluster(ref types.ManagedObjectReference, parentID st
 		props["effectiveMemory"] = s.EffectiveMemory
 	}
 
-	// Configuration (DRS/HA)
-	// govmomi configuration might be deep.
-	// Configuration (DRS/HA)
-	if cluster.Configuration.DrsConfig.Enabled != nil || cluster.Configuration.DasConfig.Enabled != nil {
-		// Just proceed if fields exist
-	}
-
 	c.GraphBuilder.EnsureNode([]string{"Cluster"}, clusterID, props)
 	c.GraphBuilder.AddEdge("CONTAINS", parentID, clusterID, nil)
 
-	// Hosts
 	for _, hostRef := range cluster.Host {
-		c.processHost(hostRef, clusterID)
+		c.processHostFromCache(hostRef, clusterID, false, cache)
 	}
-
-	// Datastores (collect as nodes)
 	for _, dsRef := range cluster.Datastore {
-		c.processDatastore(dsRef, "") // Just ensure node, no edge from cluster? Python code: ensure_node only.
+		c.processDatastoreFromCache(dsRef, "", cache)
 	}
-
-	// Resource Pool
 	if cluster.ResourcePool != nil {
-		c.processResourcePool(*cluster.ResourcePool, clusterID)
+		c.processResourcePoolFromCache(*cluster.ResourcePool, clusterID, cache)
 	}
 }
 
-func (c *Collector) processComputeResource(ref types.ManagedObjectReference, parentID string) {
-	// Standalone host wrapper
-	var cr mo.ComputeResource
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"host"}, &cr)
-	if err != nil {
+func (c *Collector) processComputeResourceFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	cr, ok := cache.Computes[ref.Value]
+	if !ok {
 		return
 	}
 	for _, hostRef := range cr.Host {
-		c.processStandaloneHost(hostRef, parentID)
+		c.processHostFromCache(hostRef, parentID, true, cache)
 	}
 }
 
-func (c *Collector) processStandaloneHost(ref types.ManagedObjectReference, parentID string) {
-	c.processHostCommon(ref, parentID, true)
-}
-
-func (c *Collector) processHost(ref types.ManagedObjectReference, parentID string) {
-	c.processHostCommon(ref, parentID, false)
-}
-
-func (c *Collector) processHostCommon(ref types.ManagedObjectReference, parentID string, isStandalone bool) {
-	var host mo.HostSystem
-	// Retrieve properties
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "summary", "vm", "datastore", "network"}, &host)
-	if err != nil {
-		log.Printf("Error processing host %s: %v", ref.Value, err)
+func (c *Collector) processHostFromCache(ref types.ManagedObjectReference, parentID string, isStandalone bool, cache *infraCache) {
+	host, ok := cache.Hosts[ref.Value]
+	if !ok {
 		return
 	}
 
-	hostID := fmt.Sprintf("esxi_host:%s:%s", c.Config.Host, getID(host.Reference()))
+	hostID := fmt.Sprintf("esxi_host:%s:%s", c.Config.Host, ref.Value)
 	props := map[string]interface{}{
 		"name": host.Name,
-		"moid": getID(host.Reference()),
+		"moid": ref.Value,
 	}
 	if isStandalone {
 		props["isStandalone"] = true
 	}
 
-	// Summary Hardware/Config/Runtime
 	summary := host.Summary
 	if summary.Hardware != nil {
 		hw := summary.Hardware
 		props["vendor"] = hw.Vendor
 		props["model"] = hw.Model
 		props["cpuModel"] = hw.CpuModel
-		props["numCpuCores"] = fmt.Sprintf("%d", hw.NumCpuCores)     // String in Python
-		props["numCpuThreads"] = fmt.Sprintf("%d", hw.NumCpuThreads) // String in Python
+		props["numCpuCores"] = fmt.Sprintf("%d", hw.NumCpuCores)
+		props["numCpuThreads"] = fmt.Sprintf("%d", hw.NumCpuThreads)
 		props["cpuMhz"] = hw.CpuMhz
-		props["memorySize"] = fmt.Sprintf("%d", hw.MemorySize) // String in Python
+		props["memorySize"] = fmt.Sprintf("%d", hw.MemorySize)
 	}
-	// Config product
 	if summary.Config.Product != nil {
 		props["version"] = summary.Config.Product.Version
 		props["build"] = summary.Config.Product.Build
 	}
-	// Runtime
 	if summary.Runtime != nil {
 		props["connectionState"] = string(summary.Runtime.ConnectionState)
 		props["powerState"] = string(summary.Runtime.PowerState)
@@ -309,64 +404,52 @@ func (c *Collector) processHostCommon(ref types.ManagedObjectReference, parentID
 	c.GraphBuilder.EnsureNode([]string{"ESXiHost"}, hostID, props)
 	c.GraphBuilder.AddEdge("CONTAINS", parentID, hostID, nil)
 
-	// VMs
 	for _, vmRef := range host.Vm {
-		c.processVM(vmRef, hostID)
+		c.processVMFromCache(vmRef, hostID, cache)
 	}
-
-	// Datastores (Just ensure node)
 	for _, dsRef := range host.Datastore {
-		c.processDatastore(dsRef, "")
+		c.processDatastoreFromCache(dsRef, "", cache)
 	}
-
-	// Networks (Ensure node)
 	for _, netRef := range host.Network {
-		c.processNetwork(netRef, "")
+		c.processNetworkFromCache(netRef, "", cache)
 	}
 }
 
-func (c *Collector) processVMFolder(ref types.ManagedObjectReference, parentID string) error {
-	var folder mo.Folder
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "childEntity"}, &folder)
-	if err != nil {
-		return err
+func (c *Collector) processVMFolderFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	folder, ok := cache.Folders[ref.Value]
+	if !ok {
+		return
 	}
 
-	folderID := fmt.Sprintf("folder:%s:%s", c.Config.Host, getID(folder.Reference()))
+	folderID := fmt.Sprintf("folder:%s:%s", c.Config.Host, ref.Value)
 	c.GraphBuilder.EnsureNode([]string{"Folder"}, folderID, map[string]interface{}{
 		"name": folder.Name,
-		"moid": getID(folder.Reference()),
+		"moid": ref.Value,
 	})
 	c.GraphBuilder.AddEdge("CONTAINS", parentID, folderID, nil)
 
 	for _, child := range folder.ChildEntity {
 		switch child.Type {
 		case "Folder":
-			c.processVMFolder(child, folderID)
+			c.processVMFolderFromCache(child, folderID, cache)
 		case "VirtualMachine":
-			c.processVM(child, folderID)
+			c.processVMFromCache(child, folderID, cache)
 		}
 	}
-	return nil
 }
 
-func (c *Collector) processVM(ref types.ManagedObjectReference, parentID string) {
-	// Retrieve logic matching Python's _collect_vm_properties
-	var vm mo.VirtualMachine
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "config", "guest", "runtime", "summary", "datastore", "network"}, &vm)
-	if err != nil {
+func (c *Collector) processVMFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	vm, ok := cache.VMs[ref.Value]
+	if !ok {
 		return
 	}
 
-	vmID := fmt.Sprintf("vm:%s:%s", c.Config.Host, getID(vm.Reference()))
-
-	// Default properties
+	vmID := fmt.Sprintf("vm:%s:%s", c.Config.Host, ref.Value)
 	props := map[string]interface{}{
 		"name": vm.Name,
-		"moid": getID(vm.Reference()),
+		"moid": ref.Value,
 	}
 
-	// Config
 	if vm.Config != nil {
 		props["guestFullName"] = vm.Config.GuestFullName
 		props["guestId"] = vm.Config.GuestId
@@ -380,58 +463,43 @@ func (c *Collector) processVM(ref types.ManagedObjectReference, parentID string)
 		}
 	}
 
-	// Runtime
 	if vm.Runtime.PowerState != "" {
 		props["powerState"] = string(vm.Runtime.PowerState)
 		props["connectionState"] = string(vm.Runtime.ConnectionState)
 		if vm.Runtime.BootTime != nil {
-			// Approximation of Python's str(datetime)
-			props["bootTime"] = vm.Runtime.BootTime.Format("2006-01-02 15:04:05.999999-07:00")
-			// Or just stick to .String() if that was close enough.
-			// But previous verification didn't flag bootTime. Let's leave it as .String() if it works.
 			props["bootTime"] = vm.Runtime.BootTime.String()
 		} else {
 			props["bootTime"] = "None"
 		}
 	}
 
-	// Guest
 	if vm.Guest != nil {
 		props["toolsStatus"] = string(vm.Guest.ToolsStatus)
 		props["toolsVersion"] = vm.Guest.ToolsVersion
 		props["hostName"] = vm.Guest.HostName
 
 		ipSet := make(map[string]bool)
-
 		if vm.Guest.IpAddress != "" {
 			ipSet[vm.Guest.IpAddress] = true
 		}
-
 		for _, net := range vm.Guest.Net {
-			if net.IpAddress != nil {
-				for _, ip := range net.IpAddress {
-					ipSet[ip] = true
-				}
+			for _, ip := range net.IpAddress {
+				ipSet[ip] = true
 			}
 		}
-
 		if len(ipSet) > 0 {
 			var ips []string
 			for ip := range ipSet {
 				ips = append(ips, ip)
 			}
-			// Python list(set()) order is undefined/random. Go map iteration is random.
-			// If strict match needed, might need sorting, but JSON arrays usually ordered.
 			sort.Strings(ips)
 			props["ipAddresses"] = ips
 		}
 	}
 
-	// Storage (missing in previous implementation)
 	if vm.Summary.Storage != nil {
-		storage := vm.Summary.Storage
-		committed := storage.Committed
-		uncommitted := storage.Uncommitted
+		committed := vm.Summary.Storage.Committed
+		uncommitted := vm.Summary.Storage.Uncommitted
 		props["storageCommitted"] = bytesToHuman(float64(committed))
 		props["storageUncommitted"] = bytesToHuman(float64(uncommitted))
 		props["storageTotalUsed"] = bytesToHuman(float64(committed + uncommitted))
@@ -440,115 +508,77 @@ func (c *Collector) processVM(ref types.ManagedObjectReference, parentID string)
 	c.GraphBuilder.EnsureNode([]string{"VM"}, vmID, props)
 	c.GraphBuilder.AddEdge("HOSTS", parentID, vmID, nil)
 
-	// Datastores
 	for _, dsRef := range vm.Datastore {
-		dsID := fmt.Sprintf("datastore:%s:%s", c.Config.Host, getID(dsRef))
-		c.processDatastore(dsRef, "")
+		dsID := fmt.Sprintf("datastore:%s:%s", c.Config.Host, dsRef.Value)
+		c.processDatastoreFromCache(dsRef, "", cache)
 		c.GraphBuilder.AddEdge("USES_DATASTORE", vmID, dsID, nil)
 	}
-
-	// Networks
 	for _, netRef := range vm.Network {
-		netID := fmt.Sprintf("network:%s:%s", c.Config.Host, getID(netRef))
-		c.processNetwork(netRef, "")
+		netID := fmt.Sprintf("network:%s:%s", c.Config.Host, netRef.Value)
+		c.processNetworkFromCache(netRef, "", cache)
 		c.GraphBuilder.AddEdge("USES_NETWORK", vmID, netID, nil)
 	}
 }
 
-func (c *Collector) getIPAddresses(guest *types.GuestInfo) []string {
-	var ips []string
-	if guest.IpAddress != "" {
-		ips = append(ips, guest.IpAddress)
-	}
-	for _, nic := range guest.Net {
-		if nic.IpAddress != nil {
-			ips = append(ips, nic.IpAddress...)
-		}
-	}
-	// unique
-	seen := make(map[string]bool)
-	var ret []string
-	for _, ip := range ips {
-		if !seen[ip] {
-			seen[ip] = true
-			ret = append(ret, ip)
-		}
-	}
-	return ret
-}
-
-func (c *Collector) processDatastore(ref types.ManagedObjectReference, parentID string) {
-	// Same as Python _process_datastore
-	var ds mo.Datastore
-	err := c.Client.RetrieveOne(c.Context, ref, []string{"name", "summary", "info"}, &ds)
-	if err != nil {
+func (c *Collector) processDatastoreFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	ds, ok := cache.Datastores[ref.Value]
+	if !ok {
 		return
 	}
 
-	dsID := fmt.Sprintf("datastore:%s:%s", c.Config.Host, getID(ds.Reference()))
+	dsID := fmt.Sprintf("datastore:%s:%s", c.Config.Host, ref.Value)
 	props := map[string]interface{}{
-		"name": ds.Name,
-		"moid": getID(ds.Reference()),
+		"name":       ds.Name,
+		"moid":       ref.Value,
+		"type":       ds.Summary.Type,
+		"capacity":   fmt.Sprintf("%d", ds.Summary.Capacity),
+		"freeSpace":  fmt.Sprintf("%d", ds.Summary.FreeSpace),
+		"accessible": ds.Summary.Accessible,
+		"url":        ds.Summary.Url,
 	}
-
-	// Summary is a value type, assume it's populated
-	props["type"] = ds.Summary.Type
-	props["capacity"] = fmt.Sprintf("%d", ds.Summary.Capacity)   // String
-	props["freeSpace"] = fmt.Sprintf("%d", ds.Summary.FreeSpace) // String
-	props["accessible"] = ds.Summary.Accessible
-	props["url"] = ds.Summary.Url
-
-	// Extra fields usually?
-	// Python doesn't add much else.
-
 	c.GraphBuilder.EnsureNode([]string{"Datastore"}, dsID, props)
 }
 
-func (c *Collector) processNetwork(ref types.ManagedObjectReference, parentID string) {
-	// Check type: Network or DistributedVirtualPortgroup
-	var net mo.Network
-	_ = c.Client.RetrieveOne(c.Context, ref, []string{"name", "summary"}, &net)
-
-	// Fallback/Check for DVPortgroup
-	isDV := false
-	if ref.Type == "DistributedVirtualPortgroup" {
-		isDV = true
-	}
+func (c *Collector) processNetworkFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	netID := fmt.Sprintf("network:%s:%s", c.Config.Host, ref.Value)
 
 	kind := "Network"
-	if isDV {
+	if ref.Type == "DistributedVirtualPortgroup" {
 		kind = "DVPortgroup"
 	}
 
-	netID := fmt.Sprintf("network:%s:%s", c.Config.Host, getID(ref))
-	props := map[string]interface{}{
-		"name": net.Name,
-		"moid": getID(ref),
+	name := ref.Value // fallback
+	if net, ok := cache.Networks[ref.Value]; ok {
+		name = net.Name
+	}
+
+	c.GraphBuilder.EnsureNode([]string{kind}, netID, map[string]interface{}{
+		"name": name,
+		"moid": ref.Value,
 		"type": ref.Type,
 		"kind": kind,
-	}
-
-	c.GraphBuilder.EnsureNode([]string{kind}, netID, props)
+	})
 }
 
-func (c *Collector) processResourcePool(ref types.ManagedObjectReference, parentID string) {
-	// Recursive resource pool processing
-	var rp mo.ResourcePool
-	_ = c.Client.RetrieveOne(c.Context, ref, []string{"name", "resourcePool", "vApp", "vm"}, &rp)
+func (c *Collector) processResourcePoolFromCache(ref types.ManagedObjectReference, parentID string, cache *infraCache) {
+	rp, ok := cache.ResPools[ref.Value]
+	if !ok {
+		return
+	}
 
-	rpID := fmt.Sprintf("resource_pool:%s:%s", c.Config.Host, getID(ref))
+	rpID := fmt.Sprintf("resource_pool:%s:%s", c.Config.Host, ref.Value)
 	c.GraphBuilder.EnsureNode([]string{"ResourcePool"}, rpID, map[string]interface{}{
 		"name": rp.Name,
-		"moid": getID(ref),
+		"moid": ref.Value,
 	})
+	c.GraphBuilder.AddEdge("CONTAINS", parentID, rpID, nil)
 
-	// Children
 	for _, child := range rp.ResourcePool {
-		c.processResourcePool(child, rpID)
+		c.processResourcePoolFromCache(child, rpID, cache)
 	}
 }
 
-// bytesToHuman converts bytes to human readable string, matching Python logic
+// bytesToHuman converts bytes to human readable string.
 func bytesToHuman(bytesVal float64) string {
 	if bytesVal == 0 {
 		return "0 B"
